@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Passed arguments
+echo "arg1: $1 \ arg2: $2"
+serversIP=$1
+glusterVolumes=$2
+
+# debug
+# serversIP=",172.21.12.12,172.21.12.11"
+# glusterVolumes="glusterfs-0,glusterfs-1"
+
+OLDIFS=$IFS
+
+# Probe for peers and prepare server statements 
+IFS=','
+bricks=''
+r=0
+n=0
+read -ra ADDR <<< "$serversIP" # is read into an array as tokens separated by IFS
+ADDR_LENTH=${#ADDR[@]}
+for server in "${ADDR[@]}"; do
+  ((r++))
+  echo -e "Array ($r of $ADDR_LENTH)"
+  if ! [[ $server =~ ^[[:space:]]*$ ]]; then
+    echo -e "Server: $server"
+
+    if [ $r -ne $ADDR_LENTH ]; then
+      echo -e "Peering: $server"
+      sudo gluster peer probe $server
+    fi
+
+    bricks="$bricks $server:/brick"
+    ((n++))
+  fi
+done
+
+# Create a volume and start cluster
+read -ra ADDR <<< "$glusterVolumes" # is read into an array as tokens separated by IFS
+for volume in "${ADDR[@]}"; do
+  echo -e "Volume: $volume with bricks ($n): $bricks"
+
+  command="gluster volume create $volume replica $n transport tcp $bricks force"
+  eval $command
+  sudo gluster volume start $volume
+done
+
+sudo gluster peer status
+sudo gluster volume info
+# sudo tail -f /var/log/glusterfs/glusterd.log
+
+IFS=$OLDIFS
