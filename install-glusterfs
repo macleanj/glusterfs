@@ -5,13 +5,12 @@ echo "arg1: $1 \ arg2: $2"
 glusterfs_version=$1
 type=$2
 
-DEBIAN_FRONTEND=noninteractive
 echo "Adding dependencies"
 sudo apt-get install -y attr software-properties-common
 
 echo "Adding glusterfs repo"
 sudo add-apt-repository ppa:gluster/glusterfs-${glusterfs_version}
-sudo apt-get update
+apt-get -o Acquire::ForceIPv4=true update --fix-missing
 
 if [ "$type" == "server" ]; then
   echo "Installing glusterfs server"

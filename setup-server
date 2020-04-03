@@ -10,9 +10,9 @@ glusterVolumes=$2
 # glusterVolumes="glusterfs-0,glusterfs-1"
 
 OLDIFS=$IFS
+IFS=','
 
 # Probe for peers and prepare server statements 
-IFS=','
 bricks=''
 r=0
 n=0
@@ -24,7 +24,7 @@ for server in "${ADDR[@]}"; do
   if ! [[ $server =~ ^[[:space:]]*$ ]]; then
     echo -e "Server: $server"
 
-    if [ $r -ne $ADDR_LENTH ]; then
+    if [ $r -lt $ADDR_LENTH ]; then
       echo -e "Peering: $server"
       sudo gluster peer probe $server
     fi
@@ -34,9 +34,12 @@ for server in "${ADDR[@]}"; do
   fi
 done
 
+sleep 5 
+
 # Create a volume and start cluster
-read -ra ADDR <<< "$glusterVolumes" # is read into an array as tokens separated by IFS
-for volume in "${ADDR[@]}"; do
+read -ra VOL <<< "$glusterVolumes" # is read into an array as tokens separated by IFS
+VOL_LENTH=${#VOL[@]}
+for volume in "${VOL[@]}"; do
   echo -e "Volume: $volume with bricks ($n): $bricks"
 
   command="gluster volume create $volume replica $n transport tcp $bricks force"
@@ -49,3 +52,12 @@ sudo gluster volume info
 # sudo tail -f /var/log/glusterfs/glusterd.log
 
 IFS=$OLDIFS
+
+# Troubleshooting
+# Manual/debug: sudo gluster volume create glusterfs-0 replica 2 transport tcp 172.21.12.12:/brick 172.21.12.11:/brick force
+# HOST=172.21.12.12
+# SELF=172.21.12.11
+# gluster peer probe $HOST
+# gluster --mode=script vol create blah $SELF:/bricks $HOST:/bricks force
+# gluster --mode=script vol delete blah
+# gluster peer detach $HOST
